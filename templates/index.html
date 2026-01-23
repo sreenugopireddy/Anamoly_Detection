@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Anomaly Detection System</title>
+    <style>
+        body { font-family: Arial; background: #f4f6f8; }
+        .card { width: 400px; margin: 80px auto; padding: 20px; background: white; border-radius: 8px; }
+        input, button { width: 100%; margin-top: 10px; padding: 8px; }
+        button { background: #2563eb; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>Transaction Risk Checker</h2>
+    <input id="amount" placeholder="Amount" />
+    <input id="location" placeholder="Location (IN / US)" />
+    <button onclick="checkRisk()">Check Risk</button>
+    <p id="result"></p>
+</div>
+
+<script>
+async function checkRisk() {
+    const response = await fetch("/score_transaction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            transaction_id: 1,
+            user_id: 1,
+            timestamp: new Date().toISOString(),
+            amount: Number(document.getElementById("amount").value),
+            location: document.getElementById("location").value,
+            device_type: "Web"
+        })
+    });
+    const data = await response.json();
+    document.getElementById("result").innerText =
+        `Risk: ${data.risk_level} (Score: ${data.risk_score})`;
+}
+</script>
+</body>
+</html>
