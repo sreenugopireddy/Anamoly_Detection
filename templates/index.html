@@ -2,40 +2,270 @@
 <html>
 <head>
     <title>Anomaly Detection System</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-        body { font-family: Arial; background: #f4f6f8; }
-        .card { width: 400px; margin: 80px auto; padding: 20px; background: white; border-radius: 8px; }
-        input, button { width: 100%; margin-top: 10px; padding: 8px; }
-        button { background: #2563eb; color: white; border: none; cursor: pointer; }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #eef2f7, #d9e2ec);
+            margin: 0;
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 420px 420px;
+            gap: 24px;
+            justify-content: center;
+        }
+
+        .card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        button:hover { background: #1e4fd8; }
+
+        .quick-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .quick-btn {
+            flex: 1;
+            background: #e5e7eb;
+            color: #111;
+            padding: 8px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .result { display:none; padding:16px; border-radius:10px; margin-top:12px; }
+        .low { background:#ecfdf5; color:#065f46; }
+        .medium { background:#fffbeb; color:#92400e; }
+        .high { background:#fef2f2; color:#991b1b; }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: bold;
+            background: rgba(0,0,0,0.08);
+        }
+
+        .bar { height:12px; background:#e5e7eb; border-radius:8px; overflow:hidden; margin-top:8px; }
+        .bar-fill { height:100%; width:0%; background:#2563eb; transition: width 0.6s ease; }
+
+        .loading { display:none; text-align:center; font-size:13px; margin-top:8px; }
+
+        table {
+            width:100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding:8px;
+            border-bottom:1px solid #eee;
+            text-align:left;
+        }
+
+        .reasons {
+            margin-top:10px;
+            font-size:13px;
+        }
+
+        .reasons li {
+            margin-bottom:4px;
+        }
     </style>
 </head>
+
 <body>
+
+<h1>🚨 Anomaly Detection Dashboard</h1>
+
+<div class="grid">
+
+<!-- LEFT — INPUT -->
 <div class="card">
-    <h2>Transaction Risk Checker</h2>
-    <input id="amount" placeholder="Amount" />
-    <input id="location" placeholder="Location (IN / US)" />
-    <button onclick="checkRisk()">Check Risk</button>
-    <p id="result"></p>
+    <h3>Transaction Input</h3>
+
+    <div class="quick-row">
+        <button class="quick-btn" onclick="fillNormal()">Normal</button>
+        <button class="quick-btn" onclick="fillSuspicious()">Suspicious</button>
+        <button class="quick-btn" onclick="fillFraud()">Fraud-like</button>
+    </div>
+
+    <input id="amount" type="number" placeholder="Transaction Amount">
+    <input id="country" type="text" placeholder="Country Code (IN / US)">
+
+    <button id="scoreBtn" onclick="checkRisk()">Check Risk</button>
+
+    <div class="loading" id="loading">Analyzing transaction...</div>
+</div>
+
+<!-- RIGHT — RESULT -->
+<div class="card">
+    <h3>Risk Result</h3>
+
+    <div class="result" id="resultBox">
+        <div id="riskText"></div>
+
+        <div class="bar">
+            <div class="bar-fill" id="scoreBar"></div>
+        </div>
+
+        <ul class="reasons" id="reasons"></ul>
+    </div>
+</div>
+
+<!-- ALERT TABLE -->
+<div class="card" style="grid-column: span 2;">
+    <h3>Recent Alerts</h3>
+    <table id="alertsTable">
+        <thead>
+            <tr><th>Score</th><th>Risk</th><th>Time</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<!-- CHART -->
+<div class="card" style="grid-column: span 2;">
+    <h3>Risk Trend</h3>
+    <canvas id="riskChart"></canvas>
+</div>
+
 </div>
 
 <script>
+function fillNormal(){
+    amount.value = 200;
+    country.value = "IN";
+}
+function fillSuspicious(){
+    amount.value = 8000;
+    country.value = "US";
+}
+function fillFraud(){
+    amount.value = 50000;
+    country.value = "US";
+}
+
 async function checkRisk() {
-    const response = await fetch("/score_transaction", {
+    const btn = document.getElementById("scoreBtn");
+    btn.disabled = true;
+
+    loading.style.display = "block";
+    resultBox.style.display = "none";
+
+    const res = await fetch("/score_transaction", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type":"application/json"},
         body: JSON.stringify({
-            transaction_id: 1,
-            user_id: 1,
-            timestamp: new Date().toISOString(),
-            amount: Number(document.getElementById("amount").value),
-            location: document.getElementById("location").value,
-            device_type: "Web"
+            amount: Number(amount.value),
+            country: country.value
         })
     });
-    const data = await response.json();
-    document.getElementById("result").innerText =
-        `Risk: ${data.risk_level} (Score: ${data.risk_score})`;
+
+    const data = await res.json();
+
+    loading.style.display = "none";
+    btn.disabled = false;
+
+    const level = data.risk_level.toLowerCase();
+    resultBox.className = "result " + level;
+    resultBox.style.display = "block";
+
+    riskText.innerHTML =
+        `Risk Level: <span class="badge">${data.risk_level}</span>
+         <br>Score: ${data.risk_score.toFixed(3)}`;
+
+    scoreBar.style.width = (data.risk_score*100) + "%";
+
+    // reasons (if backend sends)
+    reasons.innerHTML = "";
+    if (data.reasons) {
+        data.reasons.forEach(r=>{
+            const li=document.createElement("li");
+            li.textContent="⚠ "+r;
+            reasons.appendChild(li);
+        });
+    }
+
+    loadAlerts();
 }
+
+async function loadAlerts(){
+    try{
+        const res = await fetch("/alerts_recent");
+        const data = await res.json();
+
+        const tbody = document.querySelector("#alertsTable tbody");
+        tbody.innerHTML="";
+
+        const scores=[];
+        const labels=[];
+
+        data.forEach(a=>{
+            const row = `<tr>
+                <td>${a.risk_score.toFixed(2)}</td>
+                <td>${a.risk_level}</td>
+                <td>${a.created_at}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+
+            scores.push(a.risk_score);
+            labels.push(a.created_at.slice(11,19));
+        });
+
+        drawChart(labels,scores);
+    }catch{}
+}
+
+function drawChart(labels,data){
+    if(window.chart) window.chart.destroy();
+    window.chart = new Chart(riskChart,{
+        type:"line",
+        data:{labels:labels,datasets:[{data:data}]},
+        options:{plugins:{legend:{display:false}}}
+    });
+}
+
+loadAlerts();
 </script>
+
 </body>
 </html>

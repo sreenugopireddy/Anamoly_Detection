@@ -6,3 +6,7 @@ fastapi
 uvicorn
 joblib
 sqlalchemy
+jinja2
+sqlalchemy
+pydantic
+chart.js 
