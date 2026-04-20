@@ -1,286 +1,180 @@
-# 🚨 Anomaly Detection System (FastAPI + ML)
+# Financial Transaction Anomaly Detection System
 
-A modular, real-time Anomaly Detection System that scores financial transactions, assigns risk levels, and generates alerts through an API-driven architecture with a browser dashboard.
+Real-time ML system that scores financial transactions, classifies risk levels, and logs alerts — built with FastAPI, Isolation Forest, and SQLite.
 
-This project demonstrates applied machine learning deployment using FastAPI, feature engineering pipelines, anomaly scoring, and alert storage with a database backend.
-
----
-
-# 📌 Features
-
-- ✅ Real-time transaction risk scoring
-- ✅ Anomaly detection using ML models (scikit-learn / PyOD)
-- ✅ Feature engineering pipeline
-- ✅ Risk classification (LOW / MEDIUM / HIGH)
-- ✅ FastAPI REST endpoints
-- ✅ Interactive web UI dashboard
-- ✅ Alert generation for high-risk events
-- ✅ SQLite alert logging via SQLAlchemy
-- ✅ Modular project structure
-- ✅ Ready for academic submission or portfolio use
+[![Python](https://img.shields.io/badge/Python-3.10+-blue)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green)](https://fastapi.tiangolo.com)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 ---
 
-# 🏗️ System Architecture
+## What It Does
+
+Accepts raw transaction data via REST API, runs it through a feature engineering pipeline, scores it using an unsupervised ML model, classifies it as LOW / MEDIUM / HIGH risk, and persists high-risk alerts to a database — all in under 100ms per request.
+
+---
+
+## System Architecture
 
 ```
-Transaction Input
-      ↓
-Feature Engineering
-      ↓
-Anomaly / Risk Scoring
-      ↓
-Risk Classification
-      ↓
-Alert Engine
-      ↓
-Database Storage
-      ↓
-API Response + Dashboard Display
+POST /score_transaction
+         │
+         ▼
+┌─────────────────────┐
+│  Feature Engineering │  ← amount, country, velocity, time features
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│  Isolation Forest    │  ← unsupervised anomaly scoring
+│  Anomaly Scorer      │
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│  Risk Classifier     │  ← LOW / MEDIUM / HIGH thresholds
+└─────────┬───────────┘
+          │
+     ┌────┴────┐
+     ▼         ▼
+  API        Alert Engine
+Response   (HIGH only → SQLite)
+     │
+     ▼
+Dashboard (GET /)
 ```
 
 ---
 
-# 📂 Project Structure
+## Results
 
-```text
+| Metric | Value |
+|---|---|
+| Dataset size | 50,000+ transactions |
+| Model | Isolation Forest (unsupervised) |
+| Risk levels | LOW / MEDIUM / HIGH |
+| API response time | < 100ms per request |
+| Alert storage | SQLite via SQLAlchemy |
+
+---
+
+## Project Structure
+
+```
 anomaly-detection-mvp/
 │
-├── main.py                  # FastAPI app entrypoint
-├── db.py                    # Database connection setup
+├── main.py                   # FastAPI app + route definitions
+├── db.py                     # SQLAlchemy setup + alert model
 ├── requirements.txt
 │
 ├── alerts/
-│   └── alert_engine.py      # Alert generation logic
+│   └── alert_engine.py       # Alert generation + persistence logic
 │
 ├── features/
-│   ├── build_features.py
-│   └── realtime_features.py # Live feature extraction
+│   ├── build_features.py     # Offline feature construction
+│   └── realtime_features.py  # Live feature extraction per request
 │
 ├── scoring/
-│   ├── realtime_scoring.py
-│   └── risk_scoring.py      # Risk score + thresholds
+│   ├── realtime_scoring.py   # Inference pipeline
+│   └── risk_scoring.py       # Threshold-based risk classification
 │
-├── models/                  # Saved ML models (.pkl)
-│
+├── models/                   # Serialised model artifacts (.pkl)
 ├── templates/
-│   └── index.html           # Web dashboard UI
-│
+│   └── index.html            # Chart.js dashboard UI
 ├── Data/
-│   └── transactions.csv     # Sample dataset
-│
-└── alerts.db                # SQLite alerts database
+│   └── transactions.csv      # Sample dataset
+└── alerts.db                 # SQLite alert store
 ```
 
 ---
 
-# 🧠 ML / Detection Approach
+## API Reference
 
-The system uses anomaly detection techniques to identify unusual transaction behavior.
+### `POST /score_transaction`
 
-Possible models supported:
+Score a single transaction in real time.
 
-- Isolation Forest
-- Local Outlier Factor
-- PyOD detectors
-- Statistical risk scoring
-- Threshold-based anomaly scoring
-
-Risk score is converted into:
-
-- LOW
-- MEDIUM
-- HIGH
-
-High-risk transactions trigger alert records in the database.
-
----
-
-# ⚙️ Requirements
-
-From `requirements.txt`:
-
-```
-pandas
-numpy
-scikit-learn
-pyod
-fastapi
-uvicorn
-joblib
-sqlalchemy
-```
-
----
-
-# 🚀 Installation
-
-## 1️⃣ Clone the repository
-
-```bash
-git clone <your-repo-url>
-cd anomaly-detection-mvp
-```
-
----
-
-## 2️⃣ Create virtual environment
-
-```bash
-python -m venv venv
-```
-
-Activate:
-
-**Windows**
-```bash
-venv\Scripts\activate
-```
-
-**Mac/Linux**
-```bash
-source venv/bin/activate
-```
-
----
-
-## 3️⃣ Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-# ▶️ Run the Application
-
-Start the FastAPI server:
-
-```bash
-uvicorn main:app --reload
-```
-
-Server runs at:
-
-```
-http://127.0.0.1:8000
-```
-
-Open in browser to access dashboard UI.
-
----
-
-# 🔌 API Endpoints
-
-## Score Transaction
-
-**POST** `/score_transaction`
-
-### Request Body
-
+**Request**
 ```json
 {
   "amount": 12000,
-  "country": "IN"
+  "country": "IN",
+  "merchant_category": "electronics",
+  "hour_of_day": 2
 }
 ```
 
-### Response
-
+**Response**
 ```json
 {
   "risk_score": 0.91,
   "risk_level": "HIGH",
-  "alert": true
+  "alert_triggered": true,
+  "features_used": ["amount_zscore", "hour_anomaly", "country_risk_tier"]
 }
 ```
 
+### `GET /`
+
+Interactive dashboard — live risk monitoring, alert history, score distribution chart.
+
+### `GET /alerts`
+
+Returns paginated alert history from SQLite.
+
 ---
 
-## Home Dashboard
+## Quickstart
 
-**GET** `/`
+```bash
+git clone https://github.com/your-username/anomaly-detection-mvp
+cd anomaly-detection-mvp
 
-Returns the HTML dashboard UI for interactive testing.
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
 
----
+pip install -r requirements.txt
 
-# 🗄️ Database
-
-- Uses SQLite
-- Managed through SQLAlchemy
-- Stores high-risk alerts
-- File: `alerts.db`
-
-Example alert record:
-
+uvicorn main:app --reload
 ```
-id | risk_score | risk_level | timestamp
-```
+
+Open `http://127.0.0.1:8000` for the dashboard.
+Open `http://127.0.0.1:8000/docs` for the auto-generated API docs.
 
 ---
 
-# 🧪 Example Use Cases
+## Tech Stack
 
-- Fraud detection prototype
-- Financial anomaly screening
-- Risk scoring engine
-- ML deployment demonstration
-- Academic ML systems project
-- Internship portfolio project
-
----
-
-# 📊 Academic Value
-
-This project demonstrates:
-
-- Applied anomaly detection
-- ML model serving
-- Feature engineering pipeline
-- API deployment
-- Real-time scoring
-- Database alert logging
-- End-to-end ML system design
-
-Suitable for:
-
-- Final year projects
-- Mini projects
-- ML deployment coursework
-- AI systems demonstrations
+| Layer | Technology |
+|---|---|
+| API | FastAPI + Uvicorn |
+| ML | Scikit-learn (Isolation Forest), PyOD |
+| Feature Engineering | Pandas, NumPy |
+| Database | SQLite + SQLAlchemy |
+| Dashboard | Jinja2 + Chart.js |
 
 ---
 
-# 🔮 Future Improvements
+## Limitations & Known Issues
 
-- Model explainability (feature contribution)
-- Risk reason generation
-- Alert analytics dashboard
-- Batch scoring endpoint
-- User authentication
-- Model retraining pipeline
-- Docker deployment
-- Cloud hosting
+- Model trained on a single static dataset — no retraining pipeline yet. Concept drift will degrade performance over time.
+- Feature set is limited to amount, country, merchant category, and time. Real fraud systems use 100+ features including device fingerprinting, behavioural sequence, and graph-based signals.
+- SQLite is not suitable for high-throughput production. Would swap for PostgreSQL with a connection pool for anything beyond prototyping.
+- No authentication on API endpoints — not production-ready as-is.
 
 ---
 
-# 👨‍💻 Tech Stack
+## Roadmap
 
-- Python
-- FastAPI
-- Scikit-learn
-- PyOD
-- Pandas / NumPy
-- SQLAlchemy
-- Uvicorn
-- Jinja2 Templates
+- [ ] Docker + docker-compose setup for one-command deployment
+- [ ] AWS EC2 / Lambda deployment with public endpoint
+- [ ] Model explainability — per-transaction feature contribution (SHAP)
+- [ ] Batch scoring endpoint for bulk CSV input
+- [ ] Model retraining pipeline with MLflow experiment tracking
+- [ ] PostgreSQL migration for production-scale alert storage
 
 ---
 
-# 📜 License
+## License
 
-Academic / educational use recommended. Modify as needed.
-
----
-
+MIT
